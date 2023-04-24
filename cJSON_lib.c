@@ -1,21 +1,22 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "cJSON.h"
+#include <jansson.h>
 
 int get_is_verified(const char* json_string) {
-    cJSON* json = cJSON_Parse(json_string);
-    if (!json) {
-        fprintf(stderr, "Error parsing JSON string: %s\n", cJSON_GetErrorPtr());
+    json_error_t error;
+    json_t* root = json_loads(json_string, 0, &error);
+    if (!root) {
+        fprintf(stderr, "Error parsing JSON string: %s\n", error.text);
         return -1;
     }
-    cJSON* is_verified = cJSON_GetObjectItemCaseSensitive(json, "isVerified");
-    if (!cJSON_IsBool(is_verified)) {
+    json_t* is_verified = json_object_get(root, "isVerified");
+    if (!json_is_boolean(is_verified)) {
         fprintf(stderr, "Error retrieving 'isVerified' key\n");
-        cJSON_Delete(json);
+        json_decref(root);
         return -1;
     }
-    int result = cJSON_IsTrue(is_verified);
-    cJSON_Delete(json);
+    int result = json_boolean_value(is_verified);
+    json_decref(root);
     return result;
 }
 
