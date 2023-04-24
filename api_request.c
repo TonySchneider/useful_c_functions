@@ -4,30 +4,41 @@
 #include <string.h>
 #include <json-c/json.h>
 
+size_t static curl_write(void *buffer, size_t size, size_t nmemb, void *userp)
+{
+     userp += strlen(userp);  // Skipping to first unpopulated char
+     memcpy(userp, buffer, nmemb);  // Populating it.
+     return nmemb;
+}
+
 // function to send an API request and check if "isVerified" is true in the response
 int is_verified(char* file_path, char* hash_value) {
     CURL *curl;
     CURLcode res;
     char url[1000];
-    char response[1000];
+    //char response[10000] = {0};
+    char *response = (char *) malloc(512);
     struct json_object *root;
     struct json_tokener *tok;
     enum json_tokener_error error;
     int is_verified = 0;
 
+    printf("creating url\n");
     // create the URL for the API request
-    sprintf(url, "http://example.com/verify_credential_app/%s/%s", file_path, hash_value);
+    sprintf(url, "http://example.com:9000/verify_credential_app/%s/%s", file_path, hash_value);
 
+    printf("intializing url: %s\n", url);
     // initialize curl
     curl = curl_easy_init();
 
     if(curl) {
-        // set the URL for the API request
+	// set the URL for the API request
         curl_easy_setopt(curl, CURLOPT_URL, url);
 
+        printf("sending api request\n");
         // send the API request and retrieve the response
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &strcpy);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_write);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, response);
         res = curl_easy_perform(curl);
 
         if(res != CURLE_OK) {
@@ -35,7 +46,9 @@ int is_verified(char* file_path, char* hash_value) {
             return 0;
         }
 
-        // cleanup curl
+	// cleanup curl
+
+        printf("cleanup\n");
         curl_easy_cleanup(curl);
     }
 
@@ -48,6 +61,7 @@ int is_verified(char* file_path, char* hash_value) {
         json_tokener_free(tok);
         return 0;
     }
+
 
     // check if "isVerified" is true in the JSON response
     struct json_object *is_verified_obj;
