@@ -2,7 +2,26 @@
 #include <stdlib.h>
 #include <curl/curl.h>
 #include <string.h>
-#include <json-c/json.h>
+#include <jansson.h>
+
+int get_is_verified(const char* json_string) {
+    json_error_t error;
+    json_t* root = json_loads(json_string, 0, &error);
+    if (!root) {
+        fprintf(stderr, "Error parsing JSON string: %s\n", error.text);
+        return -1;
+    }
+    json_t* is_verified = json_object_get(root, "isVerified");
+    if (!json_is_string(is_verified)) {
+        fprintf(stderr, "Error retrieving 'isVerified' key\n");
+        json_decref(root);
+        return -1;
+    }
+    const char* value = json_string_value(is_verified);
+    int result = strcmp(value, "true") == 0 ? 1 : 0;
+    json_decref(root);
+    return result;
+}
 
 size_t static curl_write(void *buffer, size_t size, size_t nmemb, void *userp)
 {
@@ -51,29 +70,7 @@ int is_verified(char* file_path, char* hash_value) {
         printf("cleanup\n");
         curl_easy_cleanup(curl);
     }
-
-    // parse the JSON response
-    tok = json_tokener_new();
-    root = json_tokener_parse_ex(tok, response, strlen(response));
-
-    if(!root) {
-        fprintf(stderr, "error: %s\n", json_tokener_error_desc(tok->err));
-        json_tokener_free(tok);
-        return 0;
-    }
-
-
-    // check if "isVerified" is true in the JSON response
-    struct json_object *is_verified_obj;
-    if (json_object_object_get_ex(root, "isVerified", &is_verified_obj)) {
-        is_verified = json_object_get_boolean(is_verified_obj);
-    }
-
-    // cleanup JSON
-    json_object_put(root);
-    json_tokener_free(tok);
-
-    // return 1 if "isVerified" is true, or 0 if it's not
+    is_verified = get_is_verified(response);
     return is_verified;
 }
 
