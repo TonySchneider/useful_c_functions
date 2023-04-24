@@ -10,12 +10,13 @@ int get_is_verified(const char* json_string) {
         return -1;
     }
     json_t* is_verified = json_object_get(root, "isVerified");
-    if (!json_is_boolean(is_verified)) {
+    if (!json_is_string(is_verified)) {
         fprintf(stderr, "Error retrieving 'isVerified' key\n");
         json_decref(root);
         return -1;
     }
-    int result = json_boolean_value(is_verified);
+    const char* value = json_string_value(is_verified);
+    int result = strcmp(value, "true") == 0 ? 1 : 0;
     json_decref(root);
     return result;
 }
